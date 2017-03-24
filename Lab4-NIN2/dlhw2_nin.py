@@ -184,7 +184,7 @@ x_test[:,:,:,1] = (x_test[:,:,:,1] - color_g) / variance_g
 x_test[:,:,:,2] = (x_test[:,:,:,2] - color_b) / variance_b
 
 
-for i in range(8):
+for i in [6,7]:
   model = build_model(dropout,i)
   tb_cb = keras.callbacks.TensorBoard(log_dir=log_filepath, histogram_freq=0)
   change_lr = LearningRateScheduler(scheduler)

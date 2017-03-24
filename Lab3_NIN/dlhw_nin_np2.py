@@ -8,16 +8,18 @@ from keras.layers import Conv2D, MaxPooling2D, GlobalAveragePooling2D, AveragePo
 from keras.initializers import RandomNormal  
 from keras import optimizers
 from keras.callbacks import LearningRateScheduler
+from keras.layers.normalization import BatchNormalization
+
 batch_size = 128
-num_classes = 16
-epochs = 350
+num_classes = 10
+epochs = 200
 dropout = 0.5
 data_augmentation = True
 
 img_rows, img_cols = 32, 32
 img_channels = 3
 
-log_filepath = r'./logs/all_cov/'
+log_filepath = r'./logs/all_cov2/'
 
 (x_train, y_train), (x_test, y_test) = cifar10.load_data()
 print('x_train shape:', x_train.shape)
@@ -55,29 +57,32 @@ x_test[:,:,:,2] = (x_test[:,:,:,2] - color_b) / variance_b
 
 model = Sequential()
   
-model.add(Conv2D(96, (3, 3),padding='same', kernel_regularizer=keras.regularizers.l2(0.001), kernel_initializer=RandomNormal(stddev = 0.05), input_shape=x_train.shape[1:]))
+model.add(Conv2D(96, (3, 3),padding='same', kernel_regularizer=keras.regularizers.l2(0.001), kernel_initializer=RandomNormal(stddev = 0.01), input_shape=x_train.shape[1:]))
+model.add(BatchNormalization())
 model.add(Activation('relu'))
-model.add(Conv2D(96, (3, 3),padding='same', kernel_regularizer=keras.regularizers.l2(0.001), kernel_initializer=RandomNormal(stddev = 0.05)))
+model.add(Conv2D(96, (3, 3),padding='same'))
 model.add(Activation('relu'))
-model.add(Conv2D(96, (3, 3),padding='same', kernel_regularizer=keras.regularizers.l2(0.001), strides=(2,2), kernel_initializer=RandomNormal(stddev = 0.05)))
-model.add(Activation('relu'))
-
-model.add(Dropout(dropout))
-
-model.add(Conv2D(192, (3, 3), padding='same', kernel_regularizer=keras.regularizers.l2(0.001), kernel_initializer=RandomNormal(stddev = 0.05)))
-model.add(Activation('relu'))
-model.add(Conv2D(192, (3, 3), padding='same', kernel_regularizer=keras.regularizers.l2(0.001), kernel_initializer=RandomNormal(stddev = 0.05)))
-model.add(Activation('relu'))
-model.add(Conv2D(192, (3, 3), padding='same', kernel_regularizer=keras.regularizers.l2(0.001), strides=(2,2), kernel_initializer=RandomNormal(stddev = 0.05)))
+model.add(Conv2D(96, (3, 3),padding='same'))
 model.add(Activation('relu'))
 
 model.add(Dropout(dropout))
 
 model.add(Conv2D(192, (3, 3), padding='same', kernel_regularizer=keras.regularizers.l2(0.001), kernel_initializer=RandomNormal(stddev = 0.05)))
+model.add(BatchNormalization())
 model.add(Activation('relu'))
-model.add(Conv2D(192, (1, 1), kernel_regularizer=keras.regularizers.l2(0.001), kernel_initializer=RandomNormal(stddev = 0.05) ))
+model.add(Conv2D(192, (3, 3), padding='same'))
 model.add(Activation('relu'))
-model.add(Conv2D(16, (1, 1), kernel_regularizer=keras.regularizers.l2(0.001), kernel_initializer=RandomNormal(stddev = 0.05) ))
+model.add(Conv2D(192, (3, 3), padding='same', strides=(2,2)))
+model.add(Activation('relu'))
+
+model.add(Dropout(dropout))
+
+model.add(Conv2D(192, (3, 3), padding='same', kernel_regularizer=keras.regularizers.l2(0.001), kernel_initializer=RandomNormal(stddev = 0.05)))
+model.add(BatchNormalization())
+model.add(Activation('relu'))
+model.add(Conv2D(192, (1, 1)))
+model.add(Activation('relu'))
+model.add(Conv2D(10, (1, 1)))
 model.add(Activation('relu'))
 
 model.add(GlobalAveragePooling2D())
@@ -88,12 +93,12 @@ model.add(Activation('softmax'))
 
 def scheduler(epoch):
   learning_rate_init = 0.05
-  if epoch >= 200:
-    learning_rate_init = 0.005
-  if epoch >= 250:
+  if epoch >= 70:
+    learning_rate_init = 0.01
+  if epoch >= 140:
+    learning_rate_init = 0.001
+  if epoch >= 180:
     learning_rate_init = 0.0005
-  if epoch >= 300:
-    learning_rate_init = 0.00005
   return learning_rate_init
 
 sgd = optimizers.SGD(lr=0.05, momentum=0.9, nesterov=True)

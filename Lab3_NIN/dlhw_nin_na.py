@@ -133,6 +133,7 @@ def main():
   model = build_model(dropout)
   tb_cb = keras.callbacks.TensorBoard(log_dir=log_filepath, histogram_freq=0)
   change_lr = LearningRateScheduler(scheduler)
+  #cbks = [change_lr,tb_cb,SGDLearningRateTracker()]
   cbks = [change_lr,tb_cb]
   if not data_augmentation:
       print('Not using data augmentation.')
