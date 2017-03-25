@@ -3,7 +3,7 @@ import numpy as np
 from keras.datasets import cifar10
 from keras.preprocessing.image import ImageDataGenerator
 from keras.models import Sequential
-from keras.layers import Dense, Dropout, Activation, Flatten, MaxoutDense
+from keras.layers import Dense, Dropout, Activation, Flatten, MaxoutDense, Reshape
 from keras.layers import Conv2D, MaxPooling2D, GlobalAveragePooling2D, AveragePooling2D
 from keras.initializers import RandomNormal  
 from keras import optimizers
@@ -37,13 +37,19 @@ def build_model(dropout):
     kernel_initializer=RandomNormal(stddev = 0.0204), input_shape=x_train.shape[1:]))
   
   model.add(BatchNormalization())
-  model.add(MaxoutDense(3))
+  model.add(Flatten())
+  model.add(MaxoutDense(output_dim=32*32*192,input_dim=32*32*192))
+  model.add(Reshape((32,32,192)))
+
   model.add(Conv2D(160, (1, 1)))
-  model.add(BatchNormalization())
-  model.add(MaxoutDense(3))
+  model.add(Flatten())
+  model.add(MaxoutDense(output_dim=32*32*160,input_dim=32*32*160))
+  model.add(Reshape((32,32,160)))
   model.add(Conv2D(96, (1, 1)))
-  model.add(BatchNormalization())
-  model.add(MaxoutDense(3))
+  model.add(Flatten())
+  model.add(MaxoutDense(output_dim=32*32*96,input_dim=32*32*96))
+  model.add(Reshape((32,32,96)))
+
 
   model.add(MaxPooling2D(pool_size=(3, 3),strides=(2,2),padding = 'same'))
   model.add(Dropout(dropout))
@@ -51,13 +57,19 @@ def build_model(dropout):
   model.add(Conv2D(192, (5, 5), padding='same', kernel_regularizer=keras.regularizers.l2(0.0001),
     kernel_initializer=RandomNormal(stddev = 0.0204)))
   model.add(BatchNormalization())
-  model.add(MaxoutDense(3))
+  model.add(Flatten())
+  model.add(MaxoutDense(output_dim=16*16*192,input_dim=16*16*192))
+  model.add(Reshape((16,16,192)))
+
   model.add(Conv2D(192, (1, 1)))
-  model.add(BatchNormalization())
-  model.add(MaxoutDense(3))
+  model.add(Flatten())
+  model.add(MaxoutDense(output_dim=16*16*192,input_dim=16*16*192))
+  model.add(Reshape((16,16,192)))
+
   model.add(Conv2D(192, (1, 1)))
-  model.add(BatchNormalization())
-  model.add(MaxoutDense(3))
+  model.add(Flatten())
+  model.add(MaxoutDense(output_dim=16*16*192,input_dim=16*16*192))
+  model.add(Reshape((16,16,192)))
 
   model.add(AveragePooling2D(pool_size=(3, 3),strides=(2,2),padding = 'same'))
   model.add(Dropout(dropout))
@@ -65,13 +77,20 @@ def build_model(dropout):
   model.add(Conv2D(192, (3, 3), padding='same', kernel_regularizer=keras.regularizers.l2(0.0001),
     kernel_initializer=RandomNormal(stddev = 0.034) ))
   model.add(BatchNormalization())
-  model.add(MaxoutDense(3))
+  model.add(Flatten())
+  model.add(MaxoutDense(output_dim=8*8*192,input_dim=8*8*192))
+  model.add(Reshape((8,8,192)))
+
   model.add(Conv2D(192, (1, 1)))
-  model.add(BatchNormalization())
-  model.add(MaxoutDense(3))
+  model.add(Flatten())
+  model.add(MaxoutDense(output_dim=8*8*192,input_dim=8*8*192))
+  model.add(Reshape((8,8,192)))
+
   model.add(Conv2D(10, (1, 1)))
-  model.add(BatchNormalization())
-  model.add(MaxoutDense(3))
+  model.add(Flatten())
+  model.add(MaxoutDense(output_dim=8*8*10,input_dim=8*8*10))
+  model.add(Reshape((8,8,10)))
+
   
   #model.add(AveragePooling2D(pool_size=(8, 8),strides=(1,1)))
   model.add(GlobalAveragePooling2D())
