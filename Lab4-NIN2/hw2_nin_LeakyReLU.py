@@ -18,7 +18,7 @@ data_augmentation = True
 
 img_rows, img_cols = 32, 32
 img_channels = 3
-log_filepath = r'./logs/maxout'
+log_filepath = r'./logs/LeakyReLU'
 dropout = 0.5
 
 def scheduler(epoch):
