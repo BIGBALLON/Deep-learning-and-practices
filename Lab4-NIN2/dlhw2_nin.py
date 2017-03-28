@@ -35,11 +35,10 @@ def scheduler(epoch):
 def get_he_weight(ok,layer,k,c):
   if ok:
     return math.sqrt(2/(k*k*c))
+  elif layer == 1:
+    return 0.01
   else:
-    if layer > 1:
-      return 0.01
-    else:
-      return 0.05
+    return 0.05
 
 def build_model(dropout,i):
 
