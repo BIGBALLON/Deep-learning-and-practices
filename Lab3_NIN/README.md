@@ -24,7 +24,7 @@ And I just use the following combination to train the model. (Assume Data prepro
 
 
 ## PART 2: Experiment setup
-
+---
 
 > Model 1: NIN + DA + DP + WD + WI + NM + Dropout0.5
 
@@ -58,6 +58,7 @@ And I just use the following combination to train the model. (Assume Data prepro
 
 
 ## PART 3: Result
+---
 
 We comparison the Model 1 and Model 2 (Model 1 without data augmentation)
 
@@ -82,6 +83,7 @@ It is obvious that Data augmentation is important for training. According to the
 
 
 ## PART 4: Other experiments & Discussion
+---
 
 - Color normalization Test
 
