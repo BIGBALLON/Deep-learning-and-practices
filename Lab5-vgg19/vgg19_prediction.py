@@ -35,13 +35,13 @@ while True:
 			img = img.resize( (weight, height), Image.BILINEAR )
 			region = ( 0, height / 2 - 112 , weight, height / 2 + 112  )
 			img = img.crop( region )
-			x = np.array( img )
-			x[:, :, 0] = x[:, :, 0] - 103.939
-			x[:, :, 1] = x[:, :, 1] - 116.779
-			x[:, :, 2] = x[:, :, 2] - 123.680
-			x = np.expand_dims(x, axis=0)
-			results = model.predict(x)
-			print('Predicted:', decode_predictions(results, top=5)[0])
+		x = np.array( img, dtype = 'float32' )
+		x[:, :, 0] = x[:, :, 0] - 123.680
+		x[:, :, 1] = x[:, :, 1] - 116.779
+		x[:, :, 2] = x[:, :, 2] - 103.939
+		x = np.expand_dims(x, axis=0)
+		results = model.predict(x)
+		print('Predicted:', decode_predictions(results, top=5)[0])
 	except Exception as e:
 		pass
 
