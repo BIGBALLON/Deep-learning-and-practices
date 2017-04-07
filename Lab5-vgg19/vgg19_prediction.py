@@ -2,7 +2,6 @@ import keras
 from keras.applications.vgg19 import VGG19
 from keras.applications.vgg19 import preprocess_input, decode_predictions
 from PIL import Image
-from keras.preprocessing import image
 import numpy as np
 import os.path
 
@@ -16,15 +15,33 @@ while True:
 		print("file not exist!")
 		continue
 	try:
-		img = image.load_img(img_path, target_size=(224, 224))
-		x = image.img_to_array(img)
-		x[:, :, 0] = x[:, :, 0] - 103.939
-		x[:, :, 1] = x[:, :, 1] - 116.779
-		x[:, :, 2] = x[:, :, 2] - 123.680
-		x = np.expand_dims(x, axis=0)
-		# x = preprocess_input(x)
-		results = model.predict(x)
-		print('Predicted:', decode_predictions(results, top=5)[0])
+		img = Image.open(img_path)
+		ori_w,ori_h = img.size
+		new_w = 224.0;
+		new_h = 224.0;
+		if ori_w > ori_h:
+			bs = 224.0 / ori_h;
+			new_w = ori_w * bs
+			weight = int(new_w)
+			height = int(new_h)
+			img = img.resize( (weight, height), Image.BILINEAR )
+			region = ( weight / 2 - 112, 0, weight / 2 + 112, height)
+			img = img.crop( region )
+		else:
+			bs = 224.0 / ori_w;
+			new_h = ori_h * bs
+			weight = int(new_w)
+			height = int(new_h)
+			img = img.resize( (weight, height), Image.BILINEAR )
+			region = ( 0, height / 2 - 112 , weight, height / 2 + 112  )
+			img = img.crop( region )
+			x = np.array( img )
+			x[:, :, 0] = x[:, :, 0] - 103.939
+			x[:, :, 1] = x[:, :, 1] - 116.779
+			x[:, :, 2] = x[:, :, 2] - 123.680
+			x = np.expand_dims(x, axis=0)
+			results = model.predict(x)
+			print('Predicted:', decode_predictions(results, top=5)[0])
 	except Exception as e:
 		pass
 
