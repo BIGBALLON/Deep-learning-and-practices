@@ -7,30 +7,21 @@ from tensorflow.contrib.rnn import BasicLSTMCell
 tf.reset_default_graph()
 sess = tf.Session()
 
-
-
+iterations = 250000
+starter_learning_rate = 0.5
+output_matrix = False
 seq_length = 20
-batch_size = 64
+batch_size = 128
+test_batch_size = 256
 vocab_size = 257
 embedding_dim = 100
 memory_dim = 500
 
 
-enc_inp = [tf.placeholder(tf.int32, shape=(None,),
-						  name="inp%i" % t)
-		   for t in range(seq_length)]
-
-labels = [tf.placeholder(tf.int32, shape=(None,),
-						name="labels%i" % t)
-		  for t in range(seq_length)]
-
-weights = [tf.ones_like(labels_t, dtype=tf.float32)
-		   for labels_t in labels]
-
-# Decoder input: prepend some "GO" token and drop the final
-# token of the encoder input
-dec_inp = ([tf.zeros_like(enc_inp[0], dtype=np.int32, name="GO")]
-		   + enc_inp[:-1])
+enc_inp = [tf.placeholder(tf.int32, shape=(None,),name="inp%i" % t)  for t in range(seq_length)]
+labels = [tf.placeholder(tf.int32, shape=(None,),name="labels%i" % t) for t in range(seq_length)]
+weights = [tf.ones_like(labels_t, dtype=tf.float32) for labels_t in labels]
+dec_inp = ([tf.zeros_like(enc_inp[0], dtype=np.int32, name="GO")] + enc_inp[:-1])
 
 # Initial memory value for recurrence.
 prev_mem = tf.zeros((batch_size, memory_dim))
@@ -40,18 +31,16 @@ cell = BasicLSTMCell(memory_dim)
 dec_outputs, dec_memory = legacy_seq2seq.embedding_rnn_seq2seq(enc_inp, dec_inp, cell, vocab_size, vocab_size, embedding_dim)
 
 loss = legacy_seq2seq.sequence_loss(dec_outputs, labels, weights, vocab_size)
-
 # Optimizer: set up a variable that's incremented once per batch and
 # controls the learning rate decay.
 global_step = tf.Variable(0, trainable=False)
-starter_learning_rate = 0.5
-learning_rate = tf.train.exponential_decay(starter_learning_rate, global_step,
-										   1000, 0.975, staircase=True)
+learning_rate = tf.train.exponential_decay(starter_learning_rate, global_step, 1000, 0.98, staircase=True)
 # Use simple momentum for the optimization.
 momentum = 0.9
 optimizer = tf.train.MomentumOptimizer(starter_learning_rate,momentum, use_nesterov=True)
 train_op = optimizer.minimize(loss,global_step=global_step)
 sess.run(tf.initialize_all_variables())
+
 
 def train_batch(batch_size):
 	X = [np.random.randint(1, vocab_size, size = seq_length)
@@ -69,34 +58,50 @@ def train_batch(batch_size):
 	_, loss_t = sess.run([train_op, loss], feed_dict)
 	return loss_t
 
-def cal_acc( X, dec_batch):
+def cal_acc(X, dec_batch, num):
 	X = X.T;
 	Y = np.array(dec_batch).argmax(axis = 2).T
 	if X.shape != Y.shape:
 		return 0.0
 
 	correct = 0
-	len_seq = len(X[0])
-	len_batch = len(X)
+	len_batch = len(Y)
 	for i in range(len_batch):
-		if sum(X[i] == Y[i]) == len_seq:
+		cnt = 0
+		for j in range(num):
+			if X[i][j] == Y[i][j]:
+				cnt = cnt + 1
+		if cnt == num:
 			correct += 1
 	return correct/len_batch
 
+def test(num,t,loss_t):
 
-for t in range(30000):
-	loss_t = train_batch(batch_size)
-	# print(loss_t)
-	if t % 1000 == 0 :
-		X_batch = [np.random.randint(1, vocab_size, size=seq_length)
-			   for _ in range(500)]
-		X_batch = np.array(X_batch).T
+	if num == seq_length:
+		X_batch = [np.random.randint(1, vocab_size, size=num)
+			   for _ in range(test_batch_size)]
+	else:
+		X_batch = [np.append(np.random.randint(1, vocab_size, size=num),np.zeros((seq_length-num,), dtype=np.int))
+				for _ in range(test_batch_size)]
+	
+	X_batch = np.array(X_batch).T
 
-		feed_dict = {enc_inp[t]: X_batch[t] for t in range(seq_length)}
-		dec_outputs_batch = sess.run(dec_outputs, feed_dict)
+	feed_dict = {enc_inp[t]: X_batch[t] for t in range(seq_length)}
+	dec_outputs_batch = sess.run(dec_outputs, feed_dict)
+	acc = cal_acc( X_batch, dec_outputs_batch, num )
+	print("seqlen: %d,  lr: %.5f,   itrations: %d,   train_loss: %.5f,   test_acc: %.5f%%." %( num, sess.run(learning_rate), t, loss_t, acc*100.0) )
+	if output_matrix:
+		print("------------------------------matrix encode-----------------------------")
+		print(X_batch)
+		print("------------------------------matrix decode-----------------------------")
+		for logits_t in dec_outputs_batch:
+			print(logits_t.argmax(axis=1))
+			
 
-		print("------------------------------------------------------------------")
-		# print(X_batch)
-		# for logits_t in dec_outputs_batch:
-		# 	print(logits_t.argmax(axis=1))
-		print("lr: %.5f,   itrations: %d,   train_loss: %.5f,   test_acc: %.5f%%." %(sess.run(learning_rate), t, loss_t, cal_acc( X_batch, dec_outputs_batch )*100.0) )
+if __name__ == "__main__":
+	for t in range(iterations):
+		loss_t = train_batch(batch_size)
+		if t % 1000 == 0 :
+			test(10,t,loss_t)
+			test(20,t,loss_t)
+	
