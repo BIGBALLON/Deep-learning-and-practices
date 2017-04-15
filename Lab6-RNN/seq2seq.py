@@ -3,7 +3,7 @@ import numpy as np
 from tensorflow.contrib import legacy_seq2seq
 from tensorflow.contrib.rnn import BasicLSTMCell, MultiRNNCell
 
-iterations = 10000
+iterations = 15000
 starter_learning_rate = 0.0008
 output_matrix = False
 seq_length = 30
@@ -79,13 +79,12 @@ if __name__ == "__main__":
 
 	dec_outputs, dec_memory = legacy_seq2seq.embedding_rnn_seq2seq(enc_inp, dec_inp, cell, vocab_size, vocab_size, embedding_dim)
 	loss = legacy_seq2seq.sequence_loss(dec_outputs, labels, weights, vocab_size)
-
 	optimizer = tf.train.AdamOptimizer(starter_learning_rate).minimize(loss)
 
 	tf.summary.scalar('loss', loss)
 	summary_op = tf.summary.merge_all()
 	summary_writer = tf.summary.FileWriter('./logs', sess.graph)
-	sess.run(tf.initialize_all_variables())
+	sess.run(tf.global_variables_initializer())
 
 	for step in range(iterations):
 		loss_t, summary = train_batch(batch_size)
