@@ -1,53 +1,20 @@
 import tensorflow as tf
 import numpy as np 
 from tensorflow.contrib import legacy_seq2seq
-from tensorflow.contrib.rnn import BasicLSTMCell
-
-tf.reset_default_graph()
-sess = tf.Session()
+from tensorflow.contrib.rnn import BasicLSTMCell, MultiRNNCell
 
 iterations = 10000
-starter_learning_rate = 0.001
+starter_learning_rate = 0.0008
 output_matrix = False
-seq_length = 22
+seq_length = 30
 train_length = 20
-batch_size = 128
-test_batch_size = 512
+batch_size = 256
+test_batch_size = 256
 vocab_size = 257
 embedding_dim = 100
 memory_dim = 500
 
-
-enc_inp = [tf.placeholder(tf.int32, shape=(None,),name="inp%i" % t)  for t in range(seq_length)]
-labels = [tf.placeholder(tf.int32, shape=(None,),name="labels%i" % t) for t in range(seq_length)]
-weights = [tf.ones_like(labels_t, dtype=tf.float32) for labels_t in labels]
-dec_inp = ([tf.zeros_like(enc_inp[0], dtype=np.int32, name="O")] + enc_inp[:-1])
-prev_mem = tf.zeros((batch_size, memory_dim))
-cell = BasicLSTMCell(memory_dim)
-
-dec_outputs, dec_memory = legacy_seq2seq.embedding_rnn_seq2seq(enc_inp, dec_inp, cell, vocab_size, vocab_size, embedding_dim)
-loss = legacy_seq2seq.sequence_loss(dec_outputs, labels, weights, vocab_size)
-
-tf.summary.scalar('loss', loss)
-magnitude = tf.sqrt(tf.reduce_sum(tf.square(dec_memory[1])))
-tf.summary.scalar("magnitude at t=1", magnitude)
-summary_op = tf.summary.merge_all()
-
-# global_step = tf.Variable(0, trainable=False)
-# learning_rate = tf.train.exponential_decay(starter_learning_rate, global_step, 1000, 0.97, staircase=True)
-# momentum = 0.9
-# optimizer = tf.train.MomentumOptimizer(starter_learning_rate,momentum, use_nesterov=True)
-# train_op = optimizer.minimize(loss,global_step=global_step)
-
-# optimizer = tf.train.RMSPropOptimizer(starter_learning_rate,momentum=0.9)
-# train_op = optimizer.minimize(loss)
-
-optimizer = tf.train.AdamOptimizer(starter_learning_rate)
-train_op = optimizer.minimize(loss)
-
-summary_writer = tf.summary.FileWriter('./logs', sess.graph)
-sess.run(tf.initialize_all_variables())
-
+sess = tf.Session()
 
 def train_batch(batch_size):
 	X = [np.append(np.random.randint(1, vocab_size, size=train_length),np.zeros((seq_length-train_length,), dtype=np.int))
@@ -57,35 +24,20 @@ def train_batch(batch_size):
 	X = np.array(X).T
 	Y = np.array(Y).T
 	# print(X.shape)
+
+	W = np.full([batch_size, train_length], 1)
+	W = np.append(W, np.zeros([batch_size, seq_length - train_length]), axis=1).T
+
 	feed_dict = {enc_inp[t]: X[t] for t in range(seq_length)}
 	feed_dict.update({labels[t]: Y[t] for t in range(seq_length)})
+	feed_dict.update({weights[t]: W[t] for t in range(seq_length)})
 
-	_, loss_t, summary = sess.run([train_op, loss, summary_op], feed_dict)
+	_, loss_t, summary = sess.run([optimizer, loss, summary_op], feed_dict)
 	return loss_t, summary
 
 def cal_acc(X, dec_batch, num):
 	X = X.T;
 	Y = np.array(dec_batch).argmax(axis = 2).T
-	if X.shape != Y.shape:
-		return 0.0
-
-	correct = 0
-	len_batch = len(Y)
-	for i in range(len_batch):
-		cnt = 0
-		for j in range(num):
-			if X[i][j] == Y[i][j]:
-				cnt = cnt + 1
-		if cnt == num:
-			correct += 1
-	return correct/len_batch
-
-def cal_acc2(X, dec_batch, num):
-	X = X.T;
-	Y = np.array(dec_batch).argmax(axis = 2).T
-	if X.shape != Y.shape:
-		return 0.0
-
 	correct = 0
 	len_batch = len(Y)
 	for i in range(len_batch):
@@ -95,20 +47,18 @@ def cal_acc2(X, dec_batch, num):
 	return correct/(len_batch*num)
 
 def test(num,t,loss_t):
-
-	if num == seq_length:
-		X_batch = [np.random.randint(1, vocab_size, size=num)
-			   for _ in range(test_batch_size)]
-	else:
-		X_batch = [np.append(np.random.randint(1, vocab_size, size=num),np.zeros((seq_length-num,), dtype=np.int))
+	X_batch = [np.append(np.random.randint(1, vocab_size, size=num),np.zeros((seq_length-num,), dtype=np.int))
 				for _ in range(test_batch_size)]
-	
 	X_batch = np.array(X_batch).T
 
+	W = np.full([batch_size, train_length], 1)
+	W = np.append(W, np.zeros([batch_size, seq_length - train_length]), axis=1).T
+
 	feed_dict = {enc_inp[t]: X_batch[t] for t in range(seq_length)}
+	feed_dict.update({weights[t]: W[t] for t in range(seq_length)})
 	dec_outputs_batch = sess.run(dec_outputs, feed_dict)
-	acc = cal_acc2( X_batch, dec_outputs_batch, num )
-	print("seqlen: %d, itrations: %d, train_loss: %.5f, test_acc: %.5f%%." %( num, t, loss_t, acc*100.0) )
+	acc = cal_acc( X_batch, dec_outputs_batch, num )
+	print("test:%d/%d, itrations: %d, train_loss: %.5f, test_acc: %.5f%%." %( num ,seq_length, t, loss_t, acc*100.0) )
 	if output_matrix:
 		print("------------------------------matrix encode-----------------------------")
 		print(X_batch)
@@ -118,14 +68,35 @@ def test(num,t,loss_t):
 			
 
 if __name__ == "__main__":
-	for t in range(iterations):
+
+	enc_inp = [tf.placeholder(tf.int32, shape=(None,),name="inp%i" % t)  for t in range(seq_length)]
+	dec_inp = ([tf.zeros_like(enc_inp[0], dtype=np.int32, name="O")] + enc_inp[:-1])
+	weights = [tf.placeholder(tf.float32, shape=(None,),name="weight%i" % t)  for t in range(seq_length)]
+	labels = [tf.placeholder(tf.int32, shape=(None,),name="labels%i" % t) for t in range(seq_length)]
+	# weights = [tf.ones_like(labels_t, dtype=tf.float32) for labels_t in labels]
+	prev_mem = tf.zeros((batch_size, memory_dim))
+	cell = MultiRNNCell([BasicLSTMCell(memory_dim)]*3)
+
+	dec_outputs, dec_memory = legacy_seq2seq.embedding_rnn_seq2seq(enc_inp, dec_inp, cell, vocab_size, vocab_size, embedding_dim)
+	loss = legacy_seq2seq.sequence_loss(dec_outputs, labels, weights, vocab_size)
+
+	optimizer = tf.train.AdamOptimizer(starter_learning_rate).minimize(loss)
+
+	tf.summary.scalar('loss', loss)
+	summary_op = tf.summary.merge_all()
+	summary_writer = tf.summary.FileWriter('./logs', sess.graph)
+	sess.run(tf.initialize_all_variables())
+
+	for step in range(iterations):
 		loss_t, summary = train_batch(batch_size)
-		if t % 500 == 0 :
-			summary_writer.add_summary(summary, t)
+		if step % 100 == 0 :
+			print("itrations: %d, train_loss: %.5f." %( step, loss_t), end = '\r' )
+		if step % 500 == 0 :
+			summary_writer.add_summary(summary, step)
 			summary_writer.flush()
-			test(10,t,loss_t)
-			test(20,t,loss_t)
-			test(22,t,loss_t)
-			# test(50,t,loss_t)
+			test(10,step,loss_t)
+			test(20,step,loss_t)
+			test(30,step,loss_t)
+			# test(50,step,loss_t)
 			print('-------------------------------------------------------------------------')
 	
