@@ -6,12 +6,13 @@ from tensorflow.contrib.rnn import BasicLSTMCell
 tf.reset_default_graph()
 sess = tf.Session()
 
-iterations = 35000
-starter_learning_rate = 0.001
+iterations = 30000
+starter_learning_rate = 0.0005
 output_matrix = False
 seq_length = 30
+train_length = 20
 batch_size = 128
-test_batch_size = 512
+test_batch_size = 256
 vocab_size = 257
 embedding_dim = 100
 memory_dim = 500
@@ -36,13 +37,14 @@ loss = legacy_seq2seq.sequence_loss(dec_outputs, labels, weights, vocab_size)
 
 optimizer = tf.train.RMSPropOptimizer(starter_learning_rate,momentum=0.9)
 train_op = optimizer.minimize(loss)
+
+
 sess.run(tf.initialize_all_variables())
 
 
 def train_batch(batch_size):
-	X = [np.random.randint(1, vocab_size, size = seq_length)
+	X = [np.append(np.random.randint(1, vocab_size, size=train_length),np.zeros((seq_length-train_length,), dtype=np.int))
 		 for _ in range(batch_size)]
-
 	Y = X[:]
 	# Dimshuffle to seq_len * batch_size
 	X = np.array(X).T
@@ -71,6 +73,20 @@ def cal_acc(X, dec_batch, num):
 			correct += 1
 	return correct/len_batch
 
+def cal_acc2(X, dec_batch, num):
+	X = X.T;
+	Y = np.array(dec_batch).argmax(axis = 2).T
+	if X.shape != Y.shape:
+		return 0.0
+
+	correct = 0
+	len_batch = len(Y)
+	for i in range(len_batch):
+		for j in range(num):
+			if X[i][j] == Y[i][j]:
+				correct += 1
+	return correct/(len_batch*num)
+
 def test(num,t,loss_t):
 
 	if num == seq_length:
@@ -84,7 +100,7 @@ def test(num,t,loss_t):
 
 	feed_dict = {enc_inp[t]: X_batch[t] for t in range(seq_length)}
 	dec_outputs_batch = sess.run(dec_outputs, feed_dict)
-	acc = cal_acc( X_batch, dec_outputs_batch, num )
+	acc = cal_acc2( X_batch, dec_outputs_batch, num )
 	print("seqlen: %d, itrations: %d, train_loss: %.5f, test_acc: %.5f%%." %( num, t, loss_t, acc*100.0) )
 	if output_matrix:
 		print("------------------------------matrix encode-----------------------------")
