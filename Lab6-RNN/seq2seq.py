@@ -3,16 +3,15 @@ import numpy as np
 from tensorflow.contrib import legacy_seq2seq
 from tensorflow.contrib.rnn import BasicLSTMCell
 
-
 tf.reset_default_graph()
 sess = tf.Session()
 
-iterations = 250000
-starter_learning_rate = 0.5
+iterations = 35000
+starter_learning_rate = 0.001
 output_matrix = False
-seq_length = 20
+seq_length = 30
 batch_size = 128
-test_batch_size = 256
+test_batch_size = 512
 vocab_size = 257
 embedding_dim = 100
 memory_dim = 500
@@ -22,23 +21,21 @@ enc_inp = [tf.placeholder(tf.int32, shape=(None,),name="inp%i" % t)  for t in ra
 labels = [tf.placeholder(tf.int32, shape=(None,),name="labels%i" % t) for t in range(seq_length)]
 weights = [tf.ones_like(labels_t, dtype=tf.float32) for labels_t in labels]
 dec_inp = ([tf.zeros_like(enc_inp[0], dtype=np.int32, name="GO")] + enc_inp[:-1])
-
-# Initial memory value for recurrence.
 prev_mem = tf.zeros((batch_size, memory_dim))
-
 cell = BasicLSTMCell(memory_dim)
 
 dec_outputs, dec_memory = legacy_seq2seq.embedding_rnn_seq2seq(enc_inp, dec_inp, cell, vocab_size, vocab_size, embedding_dim)
-
 loss = legacy_seq2seq.sequence_loss(dec_outputs, labels, weights, vocab_size)
-# Optimizer: set up a variable that's incremented once per batch and
-# controls the learning rate decay.
-global_step = tf.Variable(0, trainable=False)
-learning_rate = tf.train.exponential_decay(starter_learning_rate, global_step, 1000, 0.98, staircase=True)
-# Use simple momentum for the optimization.
-momentum = 0.9
-optimizer = tf.train.MomentumOptimizer(starter_learning_rate,momentum, use_nesterov=True)
-train_op = optimizer.minimize(loss,global_step=global_step)
+
+
+# global_step = tf.Variable(0, trainable=False)
+# learning_rate = tf.train.exponential_decay(starter_learning_rate, global_step, 1000, 0.97, staircase=True)
+# momentum = 0.9
+# optimizer = tf.train.MomentumOptimizer(starter_learning_rate,momentum, use_nesterov=True)
+# train_op = optimizer.minimize(loss,global_step=global_step)
+
+optimizer = tf.train.RMSPropOptimizer(starter_learning_rate,momentum=0.9)
+train_op = optimizer.minimize(loss)
 sess.run(tf.initialize_all_variables())
 
 
@@ -47,7 +44,6 @@ def train_batch(batch_size):
 		 for _ in range(batch_size)]
 
 	Y = X[:]
-	
 	# Dimshuffle to seq_len * batch_size
 	X = np.array(X).T
 	Y = np.array(Y).T
@@ -89,7 +85,7 @@ def test(num,t,loss_t):
 	feed_dict = {enc_inp[t]: X_batch[t] for t in range(seq_length)}
 	dec_outputs_batch = sess.run(dec_outputs, feed_dict)
 	acc = cal_acc( X_batch, dec_outputs_batch, num )
-	print("seqlen: %d,  lr: %.5f,   itrations: %d,   train_loss: %.5f,   test_acc: %.5f%%." %( num, sess.run(learning_rate), t, loss_t, acc*100.0) )
+	print("seqlen: %d, itrations: %d, train_loss: %.5f, test_acc: %.5f%%." %( num, t, loss_t, acc*100.0) )
 	if output_matrix:
 		print("------------------------------matrix encode-----------------------------")
 		print(X_batch)
@@ -104,4 +100,5 @@ if __name__ == "__main__":
 		if t % 1000 == 0 :
 			test(10,t,loss_t)
 			test(20,t,loss_t)
+			test(30,t,loss_t)
 	
