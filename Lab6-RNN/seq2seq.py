@@ -19,7 +19,7 @@ batch_size = 128
 word_size = 256 + 2
 embedding_dim = 100
 memory_dim = 500
-logs_path = './logs'
+logs_path = './logs_train20+10padding'
 #####################################
 
 # define placeholder
@@ -42,10 +42,10 @@ def cal_acc(X, dec_batch, num):
 def set_feed_dict(used_len):
 	X = [np.append(np.random.randint(1, 257, size=used_len),np.zeros((seq_length-used_len,), dtype=np.int)) for _ in range(batch_size)]
 	D = np.full([batch_size, seq_length], 257)
-	# W = np.full([batch_size, seq_length], 1)
+	W = np.full([batch_size, seq_length], 1)
 
-	W = np.full([batch_size, used_len], 1)
-	W = np.append(W, np.zeros([batch_size, seq_length - used_len]), axis=1)
+	# W = np.full([batch_size, used_len], 1)
+	# W = np.append(W, np.zeros([batch_size, seq_length - used_len]), axis=1)
 
 	feed_dict = {enc_inp[t]: X[t] for t in range(seq_length)}
 	feed_dict.update({dec_inp[t]: D[t] for t in range(seq_length)})
@@ -57,7 +57,7 @@ def set_optimizer(lr):
 	# return tf.train.AdamOptimizer(lr)
 	# return tf.train.GradientDescentOptimizer(lr)
 	# return tf.train.MomentumOptimizer(lr, 0.9, use_nesterov=True)
-	return tf.train.RMSPropOptimizer(learning_rate=0.0003, momentum=0.9)
+	return tf.train.RMSPropOptimizer(learning_rate=0.0002, momentum=0.9)
 
 # set cell of RNN
 def set_cell():
@@ -133,11 +133,4 @@ def train(batch_size):
 
 if __name__ == "__main__":
 
-	test_index = [0,1,2]
-	logs_path = './logs_train20+10padding'
 	train(batch_size)
-	test_index = [1,2,3]
-	logs_path = './logs_train30+20padding'
-	iterations = 20000 + 1
-	train(batch_size)
-		
