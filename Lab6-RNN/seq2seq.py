@@ -1,43 +1,35 @@
 import tensorflow as tf
 import numpy as np 
 from tensorflow.contrib import legacy_seq2seq
-from tensorflow.contrib.rnn import BasicLSTMCell, MultiRNNCell
+from tensorflow.contrib.rnn import BasicLSTMCell, MultiRNNCell, GRUCell
 
-iterations = 15000
-starter_learning_rate = 0.0008
+# global variable
+iterations = 13000 + 1
+starter_learning_rate = 0.001
 output_matrix = False
+
+###############################
 seq_length = 30
 train_length = 20
-batch_size = 256
-test_batch_size = 256
-vocab_size = 257
+test_len_list = [10,20,30,50]
+test_index = [0,1,2]
+###############################
+
+batch_size = 128
+word_size = 256 + 2
 embedding_dim = 100
 memory_dim = 500
 
-sess = tf.Session()
+logs_path = './logs'
 
-def train_batch(batch_size):
-	X = [np.append(np.random.randint(1, vocab_size, size=train_length),np.zeros((seq_length-train_length,), dtype=np.int))
-		 for _ in range(batch_size)]
-	Y = X[:]
-	# Dimshuffle to seq_len * batch_size
-	X = np.array(X).T
-	Y = np.array(Y).T
-	# print(X.shape)
+# define placeholder
+enc_inp = [tf.placeholder(tf.int32, shape=(None,),name="inp%i" % t)  for t in range(seq_length)]
+dec_inp = [tf.placeholder(tf.int32, shape=(None,),name="dec%i" % t)  for t in range(seq_length)]
+weights = [tf.placeholder(tf.float32, shape=(None,),name="weight%i" % t)  for t in range(seq_length)]
 
-	W = np.full([batch_size, train_length], 1)
-	W = np.append(W, np.zeros([batch_size, seq_length - train_length]), axis=1).T
-
-	feed_dict = {enc_inp[t]: X[t] for t in range(seq_length)}
-	feed_dict.update({labels[t]: Y[t] for t in range(seq_length)})
-	feed_dict.update({weights[t]: W[t] for t in range(seq_length)})
-
-	_, loss_t, summary = sess.run([optimizer, loss, summary_op], feed_dict)
-	return loss_t, summary
-
+# calculate the accuracy of testing
 def cal_acc(X, dec_batch, num):
-	X = X.T;
-	Y = np.array(dec_batch).argmax(axis = 2).T
+	Y = np.array(dec_batch).argmax(axis = 2)
 	correct = 0
 	len_batch = len(Y)
 	for i in range(len_batch):
@@ -46,56 +38,100 @@ def cal_acc(X, dec_batch, num):
 				correct += 1
 	return correct/(len_batch*num)
 
-def test(num,t,loss_t):
-	X_batch = [np.append(np.random.randint(1, vocab_size, size=num),np.zeros((seq_length-num,), dtype=np.int))
-				for _ in range(test_batch_size)]
-	X_batch = np.array(X_batch).T
+# set feed dictionary
+def set_feed_dict(used_len):
+	X = [np.append(np.random.randint(1, 257, size=used_len),np.zeros((seq_length-used_len,), dtype=np.int)) for _ in range(batch_size)]
+	D = np.full([batch_size, seq_length], 257)
+	W = np.full([batch_size, seq_length], 1)
 
-	W = np.full([batch_size, train_length], 1)
-	W = np.append(W, np.zeros([batch_size, seq_length - train_length]), axis=1).T
+	# W = np.full([batch_size, used_len], 1)
+	# W = np.append(W, np.zeros([batch_size, seq_length - used_len]), axis=1)
 
-	feed_dict = {enc_inp[t]: X_batch[t] for t in range(seq_length)}
+	feed_dict = {enc_inp[t]: X[t] for t in range(seq_length)}
+	feed_dict.update({dec_inp[t]: D[t] for t in range(seq_length)})
 	feed_dict.update({weights[t]: W[t] for t in range(seq_length)})
-	dec_outputs_batch = sess.run(dec_outputs, feed_dict)
-	acc = cal_acc( X_batch, dec_outputs_batch, num )
-	print("test:%d/%d, itrations: %d, train_loss: %.5f, test_acc: %.5f%%." %( num ,seq_length, t, loss_t, acc*100.0) )
-	if output_matrix:
-		print("------------------------------matrix encode-----------------------------")
-		print(X_batch)
-		print("------------------------------matrix decode-----------------------------")
-		for logits_t in dec_outputs_batch:
-			print(logits_t.argmax(axis=1))
-			
+	return feed_dict, X
 
-if __name__ == "__main__":
+# test all kinds of optimizer
+def set_optimizer(lr):
+	# return tf.train.AdamOptimizer(lr)
+	# return tf.train.GradientDescentOptimizer(lr)
+	# return tf.train.MomentumOptimizer(lr, 0.9, use_nesterov=True)
+	return tf.train.RMSPropOptimizer(learning_rate=0.0003, momentum=0.9)
 
-	enc_inp = [tf.placeholder(tf.int32, shape=(None,),name="inp%i" % t)  for t in range(seq_length)]
-	dec_inp = ([tf.zeros_like(enc_inp[0], dtype=np.int32, name="O")] + enc_inp[:-1])
-	weights = [tf.placeholder(tf.float32, shape=(None,),name="weight%i" % t)  for t in range(seq_length)]
-	labels = [tf.placeholder(tf.int32, shape=(None,),name="labels%i" % t) for t in range(seq_length)]
-	# weights = [tf.ones_like(labels_t, dtype=tf.float32) for labels_t in labels]
-	prev_mem = tf.zeros((batch_size, memory_dim))
-	cell = MultiRNNCell([BasicLSTMCell(memory_dim)]*3)
+# set cell of RNN
+def set_cell():
+	return BasicLSTMCell(memory_dim)
+	# return GRUCell(memory_dim)
+	# return MultiRNNCell( [ BasicLSTMCell(memory_dim)] * 3 )
+	# return MultiRNNCell( [ GRUCell(memory_dim)] * 3 )
 
-	dec_outputs, dec_memory = legacy_seq2seq.embedding_rnn_seq2seq(enc_inp, dec_inp, cell, vocab_size, vocab_size, embedding_dim)
-	loss = legacy_seq2seq.sequence_loss(dec_outputs, labels, weights, vocab_size)
-	optimizer = tf.train.AdamOptimizer(starter_learning_rate).minimize(loss)
 
+# training and testing
+def train(batch_size):
+
+	# using embedding_rnn_seq2seq model
+	dec_outputs, _ = legacy_seq2seq.embedding_rnn_seq2seq(
+			encoder_inputs = enc_inp, 
+			decoder_inputs = dec_inp, 
+			cell = set_cell(), 
+			num_encoder_symbols = word_size, 
+			num_decoder_symbols = word_size, 
+			embedding_size = embedding_dim)
+
+	# calc loss
+	loss = legacy_seq2seq.sequence_loss(dec_outputs, enc_inp, weights)
+
+	# using optimizer
+	optimizer = set_optimizer(starter_learning_rate).minimize(loss)
+
+	# define session and summary operation
+	sess = tf.Session()
+	sess.run(tf.global_variables_initializer())
 	tf.summary.scalar('loss', loss)
 	summary_op = tf.summary.merge_all()
-	summary_writer = tf.summary.FileWriter('./logs', sess.graph)
-	sess.run(tf.global_variables_initializer())
 
+	train_writer = tf.summary.FileWriter(logs_path+r'/train', sess.graph)
+	test_writer = []
+	test_writer.append(tf.summary.FileWriter(logs_path+r'/test_10'))
+	test_writer.append(tf.summary.FileWriter(logs_path+r'/test_20'))
+	test_writer.append(tf.summary.FileWriter(logs_path+r'/test_30'))
+	test_writer.append(tf.summary.FileWriter(logs_path+r'/test_50'))
+
+	# training 
 	for step in range(iterations):
-		loss_t, summary = train_batch(batch_size)
-		if step % 100 == 0 :
-			print("itrations: %d, train_loss: %.5f." %( step, loss_t), end = '\r' )
+
+		feed_dict, _ = set_feed_dict(train_length)
+		_, train_loss, summary = sess.run([optimizer, loss, summary_op], feed_dict)
+		train_writer.add_summary(summary, step)
+
+		if step % 10 == 0 :
+			print("itrations: %d, train_loss: %.5f." %( step, train_loss ), end = '\r' )
+
+		# testing
 		if step % 500 == 0 :
-			summary_writer.add_summary(summary, step)
-			summary_writer.flush()
-			test(10,step,loss_t)
-			test(20,step,loss_t)
-			test(30,step,loss_t)
-			# test(50,step,loss_t)
-			print('-------------------------------------------------------------------------')
-	
+			for i in test_index:
+				# test length
+				test_len = test_len_list[i]
+				feed_dict, X_batch = set_feed_dict(test_len)
+				dec_outputs_batch, test_loss, summary = sess.run([dec_outputs,loss,summary_op], feed_dict)	
+				test_writer[i].add_summary(summary, step)
+				test_writer[i].flush()
+
+				testing_acc = cal_acc(X_batch, dec_outputs_batch, test_len)
+
+				print("test:%d/%d, itrations: %d, test_loss: %.5f, test_acc: %.5f%%." %( test_len ,seq_length, step, test_loss, testing_acc*100.0) )
+				if output_matrix:
+					print("----------------------------------matrix encode---------------------------------")
+					for i in range(4):
+						print(X_batch[i])
+					print("----------------------------------matrix decode---------------------------------")
+					Y_batch = np.array(dec_outputs_batch).argmax(axis = 2)
+					for i in range(4):
+						print(Y_batch[i])
+				print('--------------------------------------------------------------------------------')
+
+
+if __name__ == "__main__":
+	train(batch_size)
+		
