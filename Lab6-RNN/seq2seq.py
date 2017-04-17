@@ -3,24 +3,24 @@ import numpy as np
 from tensorflow.contrib import legacy_seq2seq
 from tensorflow.contrib.rnn import BasicLSTMCell, MultiRNNCell, GRUCell
 
-# global variable
+########## global variable ##########
 iterations = 13000 + 1
 starter_learning_rate = 0.001
 output_matrix = False
 
-###############################
+#===================================#
 seq_length = 30
 train_length = 20
 test_len_list = [10,20,30,50]
 test_index = [0,1,2]
-###############################
+#===================================#
 
 batch_size = 128
 word_size = 256 + 2
 embedding_dim = 100
 memory_dim = 500
-
 logs_path = './logs'
+#####################################
 
 # define placeholder
 enc_inp = [tf.placeholder(tf.int32, shape=(None,),name="inp%i" % t)  for t in range(seq_length)]
@@ -42,10 +42,10 @@ def cal_acc(X, dec_batch, num):
 def set_feed_dict(used_len):
 	X = [np.append(np.random.randint(1, 257, size=used_len),np.zeros((seq_length-used_len,), dtype=np.int)) for _ in range(batch_size)]
 	D = np.full([batch_size, seq_length], 257)
-	W = np.full([batch_size, seq_length], 1)
+	# W = np.full([batch_size, seq_length], 1)
 
-	# W = np.full([batch_size, used_len], 1)
-	# W = np.append(W, np.zeros([batch_size, seq_length - used_len]), axis=1)
+	W = np.full([batch_size, used_len], 1)
+	W = np.append(W, np.zeros([batch_size, seq_length - used_len]), axis=1)
 
 	feed_dict = {enc_inp[t]: X[t] for t in range(seq_length)}
 	feed_dict.update({dec_inp[t]: D[t] for t in range(seq_length)})
@@ -65,7 +65,6 @@ def set_cell():
 	# return GRUCell(memory_dim)
 	# return MultiRNNCell( [ BasicLSTMCell(memory_dim)] * 3 )
 	# return MultiRNNCell( [ GRUCell(memory_dim)] * 3 )
-
 
 # training and testing
 def train(batch_size):
@@ -133,5 +132,12 @@ def train(batch_size):
 
 
 if __name__ == "__main__":
+
+	test_index = [0,1,2]
+	logs_path = './logs_train20+10padding'
+	train(batch_size)
+	test_index = [1,2,3]
+	logs_path = './logs_train30+20padding'
+	iterations = 20000 + 1
 	train(batch_size)
 		
