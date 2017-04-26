@@ -83,8 +83,8 @@ class CaptioningSolver(object):
         tf.summary.scalar('batch_loss', loss)
         for var in tf.trainable_variables():
             tf.summary.histogram(var.op.name, var)
-        for grad, var in grads_and_vars:
-            tf.summary.histogram(var.op.name+'/gradient', grad)
+        # for grad, var in grads_and_vars:
+        #     tf.summary.histogram(var.op.name+'/gradient', grad)
         
         summary_op = tf.summary.merge_all() 
 
@@ -108,19 +108,15 @@ class CaptioningSolver(object):
             print "Batch size: %d" %self.batch_size
 
             for e in range(self.n_epochs):
-
-                # load data 10 times to solve huge data load problem #
-
+                # load data 9 times to solve huge data load problem #
                 cur_iteration = 0
                 for data_cnt in range(9):
                     print "----------------------------------------------------"
-
                     print "Loading data (part %d / 9) " %(int(data_cnt)+1)
 
                     features = hickle.load(os.path.join('./data/train', 'train.features%d.hkl' % data_cnt))
                     
                     total_num = features.shape[0]
-
                     print "Load success (data size: %d) " %total_num
                     print "Iterations: %d" %n_iters_per_epoch
                     print "----------------------------------------------------"
@@ -249,7 +245,8 @@ class CaptioningSolver(object):
                         alp_img = skimage.transform.pyramid_expand(alp_curr, upscale=16, sigma=20)
                         plt.imshow(alp_img, alpha=0.85)
                         plt.axis('off')
-                    plt.show()
+                    # plt.show()
+                    plt.savefig('./jpg/soft_%d.jpg'%(n))
                     
 
             if save_sampled_captions:

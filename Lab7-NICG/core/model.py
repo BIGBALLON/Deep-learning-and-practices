@@ -92,15 +92,10 @@ class CaptionGenerator(object):
             h_att = tf.nn.relu(features_proj + tf.expand_dims(tf.matmul(h, w), 1) + b)    # (N, L, D)
             out_att = tf.reshape(tf.matmul(tf.reshape(h_att, [-1, self.D]), w_att), [-1, self.L])   # (N, L)
             alpha = tf.nn.softmax(out_att)  
-            context = tf.reduce_sum(features * tf.expand_dims(alpha, 2), 1, name='context')   #(N, D)
-            return context, alpha
             # using argmax -> set max to 1   others to 0
-            # hard_alpha = tf.zeros_like(alpha)
-            # for i in len(alpha):
-            #     hard_alpha[i][tf.argmax(alpha[i])] = tf.constant(1)
-            # hard_alpha = tf.multiply(tf.cast(tf.equal(alpha, tf.reduce_max(alpha)), tf.float32), alpha)
-            # context = tf.reduce_sum(features * tf.expand_dims(hard_alpha, 2), 1, name='context')
-            # return context, hard_alpha
+            # alpha = tf.one_hot(tf.argmax(out_att, axis=1), self.L, on_value=1.0, off_value=0.0, axis=-1)
+            context = tf.reduce_sum(features * tf.expand_dims(alpha, 2), 1, name='context')
+            return context, alpha
   
     def _selector(self, context, h, reuse=False):
         with tf.variable_scope('selector', reuse=reuse):
@@ -197,8 +192,8 @@ class CaptionGenerator(object):
         sampled_word_list = []
         alpha_list = []
         beta_list = []
-        # lstm_cell = tf.contrib.rnn.BasicLSTMCell(self.H, reuse=True)
-        lstm_cell = tf.contrib.rnn.BasicLSTMCell(self.H)
+        lstm_cell = tf.contrib.rnn.BasicLSTMCell(self.H, reuse=True)
+        # lstm_cell = tf.contrib.rnn.BasicLSTMCell(self.H)
 
         for t in range(max_len):
             if t == 0:

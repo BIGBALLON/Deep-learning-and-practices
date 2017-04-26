@@ -10,10 +10,10 @@ import os
 #         word_to_idx = pickle.load(f)
 #     return word_to_idx 
 
-def save_pickle_a(data, path):
-    with open(path, 'a') as f:
-        pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
-        print ('Saved %s..' %path)
+# def save_pickle_a(data, path):
+#     with open(path, 'a') as f:
+#         pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
+#         print ('Saved %s..' %path)
         
 def load_val_data():
     return hickle.load(os.path.join('./data/val', 'val.features0.hkl'))        
@@ -73,9 +73,8 @@ def sample_coco_minibatch(data, batch_size):
 
     # loading features in training time
     data_size = data['features'].shape[0]
-    mask = np.random.choice(data_size, batch_size)
-    # test same pic to see hard attension & soft attension
-    # mask = np.random.choice(10, 10)
+    # mask = np.random.choice(data_size, batch_size)
+    mask = np.random.choice(30, 10)
     features = data['features'][mask]
     file_names = data['file_names'][mask]
     return features, file_names
