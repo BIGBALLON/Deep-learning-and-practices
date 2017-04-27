@@ -192,8 +192,8 @@ class CaptionGenerator(object):
         sampled_word_list = []
         alpha_list = []
         beta_list = []
-        lstm_cell = tf.contrib.rnn.BasicLSTMCell(self.H, reuse=True)
-        # lstm_cell = tf.contrib.rnn.BasicLSTMCell(self.H)
+        # lstm_cell = tf.contrib.rnn.BasicLSTMCell(self.H, reuse=True)
+        lstm_cell = tf.contrib.rnn.BasicLSTMCell(self.H)
 
         for t in range(max_len):
             if t == 0:

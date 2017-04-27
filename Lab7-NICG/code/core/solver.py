@@ -245,8 +245,8 @@ class CaptioningSolver(object):
                         alp_img = skimage.transform.pyramid_expand(alp_curr, upscale=16, sigma=20)
                         plt.imshow(alp_img, alpha=0.85)
                         plt.axis('off')
-                    # plt.show()
-                    plt.savefig('./jpg/soft_%d.jpg'%(n))
+                    plt.show()
+                    # plt.savefig('./jpg/hard3_%d.jpg'%(n))
                     
 
             if save_sampled_captions:

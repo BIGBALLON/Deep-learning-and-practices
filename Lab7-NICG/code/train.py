@@ -3,8 +3,8 @@ from core.model import CaptionGenerator
 from core.utils import load_coco_data
 
 # test_model_path = 'model/lstm/model-10'
-test_model_path = 'soft/model-10'
-# test_model_path = 'hard/model-10'
+test_model_path = 'model/soft/model-10'
+# test_model_path = 'model/hard3/model-10'
 
 def main():
     # load train dataset
@@ -21,8 +21,8 @@ def main():
                                           learning_rate=0.001, print_every=10, save_every=1, image_path='./image/',
                                     pretrained_model=None, model_path='model/lstm/', test_model=test_model_path,
                                      print_bleu=True, log_path='log/')
-    solver.train()
-    # solver.test(val_data, split='val')
+    # solver.train()
+    solver.test(val_data, split='val')
 
 if __name__ == "__main__":
     main()
