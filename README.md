@@ -9,4 +9,4 @@ Version control for my deep learning course.
 - Lab5_Retrain VGG19 on Cifar-10
 - Lab6_RNN seq2seq
 - Lab7_Caption generation with visual attention
-- Lab7_Temporal Difference Learning 2048
+- Lab8_Temporal Difference Learning 2048
