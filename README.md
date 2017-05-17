@@ -10,3 +10,4 @@ Version control for my deep learning course.
 - Lab6_RNN seq2seq
 - Lab7_Caption generation with visual attention
 - Lab8_Temporal Difference Learning 2048
+- Lab9_Deep Q Network
