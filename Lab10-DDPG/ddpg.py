@@ -9,7 +9,7 @@ import tflearn
 
 from replay_buffer import ReplayBuffer                       # using replay_buffer.py
  
-MAX_EPISODES         = 4000                                  # Training Episodes
+MAX_EPISODES         = 10000                                  # Training Episodes
 ACTOR_LEARNING_RATE  = 0.0001
 CRITIC_LEARNING_RATE = 0.001
 GAMMA                = 0.99
@@ -21,7 +21,7 @@ MONITOR_DIR    = './gym_ddpg'
 LOG_DIR        = './logs'
 RANDOM_SEED    = 1234                                         # random seed for game enviornment
 
-BUFFER_SIZE    = 30000                                        # size of replay buffer
+BUFFER_SIZE    = 250000                                        # size of replay buffer
 MINIBATCH_SIZE = 64
 
 class ActorNetwork(object):
@@ -297,7 +297,8 @@ def main(_):
         t_critic = CriticNetwork(sess, state_dim, action_dim, CRITIC_LEARNING_RATE, "tc")
 
         if RECORD_VIDEOS:
-            env = gym.wrappers.Monitor(env, MONITOR_DIR, video_callable=lambda count: (count) % 100 == 0, force=True)
+        # record videos
+            env = gym.wrappers.Monitor(env, MONITOR_DIR, video_callable=lambda count: (count+1) % 100 == 0, force=True)
         train(sess, env, b_actor, b_critic, t_actor, t_critic)
 
         if RECORD_VIDEOS:
