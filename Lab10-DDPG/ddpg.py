@@ -103,8 +103,7 @@ class CriticNetwork(object):
 
         # loss & optimize op
         self.loss = tflearn.mean_square(self.target_q_value, self.out)
-        self.optimize = tf.train.AdamOptimizer(
-            self.learning_rate).minimize(self.loss)
+        self.optimize = tf.train.AdamOptimizer(self.learning_rate).minimize(self.loss)
 
         # compute the partial derivatives of self.out with respect to self.action
         # Hint: tf.gradients()		https://www.tensorflow.org/versions/r1.2/api_docs/python/tf/gradients
@@ -193,7 +192,7 @@ def build_summaries():
 
     return summary_ops, summary_vars
 
-def train(sess, env, behavior_actor, behavior_critic, target_actor, target_critic):
+def train(sess, env, behavior_actor, behavior_critic, target_actor, target_critic,saver):
 
     # Set up summary Ops
     summary_ops, summary_vars = build_summaries()
@@ -215,6 +214,7 @@ def train(sess, env, behavior_actor, behavior_critic, target_actor, target_criti
     replay_buffer = ReplayBuffer(BUFFER_SIZE)
     global_max_reward = -4096;
     for i in range(MAX_EPISODES):
+        saver.save(tf.get_default_session(), 'checkpoints')
         s = env.reset()
         ep_reward = 0
         ep_avg_max_q = 0
@@ -296,10 +296,11 @@ def main(_):
         t_actor = ActorNetwork(sess, state_dim, action_dim, action_bound, ACTOR_LEARNING_RATE, "ta")
         t_critic = CriticNetwork(sess, state_dim, action_dim, CRITIC_LEARNING_RATE, "tc")
 
+        saver = tf.train.Saver()
         if RECORD_VIDEOS:
         # record videos
             env = gym.wrappers.Monitor(env, MONITOR_DIR, video_callable=lambda count: (count+1) % 100 == 0, force=True)
-        train(sess, env, b_actor, b_critic, t_actor, t_critic)
+        train(sess, env, b_actor, b_critic, t_actor, t_critic,saver)
 
         if RECORD_VIDEOS:
             env.monitor.close()
