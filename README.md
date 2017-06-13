@@ -14,4 +14,4 @@ Version control for my deep learning course.
 
 - Slides
 - Final Project: Solving physical problems with Deep Reinforcement Learning
-- Paper Presentation: Various improvements to Deep Q Network
+- Paper Presentation: Deep Reinforcement Learning for Discrete Action Space
