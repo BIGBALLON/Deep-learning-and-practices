@@ -11,7 +11,5 @@ Version control for my deep learning course.
 - Lab08_Temporal Difference Learning 2048
 - Lab09_Deep Q Network
 - Lab10_Deep Deterministic Policy Gradient
-
-- Slides
 - Final Project: Solving physical problems with Deep Reinforcement Learning
 - Paper Presentation: Deep Reinforcement Learning for Discrete Action Space
