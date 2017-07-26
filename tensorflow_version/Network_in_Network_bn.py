@@ -9,146 +9,42 @@
 #      Trick Used:
 #         Data augmentation parameters
 #         Color normalization
-#         Weight Decay
-#         Weight initialization
 #         Use Nesterov momentum
-# Testing accuracy: 90.95% ~ 91.10%
+#         Weight Decay
+#         He's Weight initialization [https://arxiv.org/abs/1502.01852]
+#         Batch Normalization [https://arxiv.org/abs/1502.03167]
+#         Use ELU instead of ReLu [https://arxiv.org/abs/1511.07289]
+#        
+# Result: Test accuracy about 91.5% 
 # ========================================================== #
 
-import os
-import sys
-import time
-import pickle
-import random
 import tensorflow as tf
-import numpy as np
+from data_utility import *
 
-class_num       = 10
-image_size      = 32
-img_channels    = 3
-iterations      = 391
-batch_size      = 128
+iterations      = 200
+batch_size      = 250
 total_epoch     = 164
-dropout_rate    = 0.5
 weight_decay    = 0.0001
+dropout_rate    = 0.5
 momentum_rate   = 0.9
-log_save_path   = './logs'
+log_save_path   = './nin_bn_logs'
 model_save_path = './model/'
 
 # ========================================================== #
-# ├─ prepare_data() 
-#  ├─ download training data if not exist by download_data()
-#  ├─ load data by load_data()
-#  └─ shuffe and return data
-# ========================================================== #
-
-def download_data():
-    dirname  = 'cifar-10-batches-py'
-    origin   = 'http://www.cs.toronto.edu/~kriz/cifar-10-python.tar.gz'
-    fname = 'cifar-10-python.tar.gz'
-    fpath = './' + dirname
-
-    download = False
-    if os.path.exists(fpath) or os.path.isfile(fname):
-        download = False
-        print("DataSet aready exist!")
-    else:
-        download = True
-    if download:
-        print('Downloading data from', origin)
-        import urllib.request
-        import tarfile
-
-        def reporthook(count, block_size, total_size):
-            global start_time
-            if count == 0:
-                start_time = time.time()
-                return
-            duration = time.time() - start_time
-            progress_size = int(count * block_size)
-            speed = int(progress_size / (1024 * duration))
-            percent = min(int(count*block_size*100/total_size),100)
-            sys.stdout.write("\r...%d%%, %d MB, %d KB/s, %d seconds passed" %
-                            (percent, progress_size / (1024 * 1024), speed, duration))
-            sys.stdout.flush()
-
-        urllib.request.urlretrieve(origin, fname, reporthook)
-        print('Download finished. Start extract!', origin)
-        if (fname.endswith("tar.gz")):
-            tar = tarfile.open(fname, "r:gz")
-            tar.extractall()
-            tar.close()
-        elif (fname.endswith("tar")):
-            tar = tarfile.open(fname, "r:")
-            tar.extractall()
-            tar.close()
-
-def unpickle(file):
-    with open(file, 'rb') as fo:
-        dict = pickle.load(fo, encoding='bytes')
-    return dict
-
-def load_data_one(file):
-    batch  = unpickle(file)
-    data   = batch[b'data']
-    labels = batch[b'labels']
-    print("Loading %s : %d." %(file, len(data)))
-    return data, labels
-
-def load_data(files, data_dir, label_count):
-    global image_size, img_channels
-    data, labels = load_data_one(data_dir + '/' + files[0])
-    for f in files[1:]:
-        data_n, labels_n = load_data_one(data_dir + '/' + f)
-        data = np.append(data,data_n,axis=0)
-        labels = np.append(labels,labels_n,axis=0)
-    labels = np.array( [ [ float( i == label ) for i in range(label_count) ] for label in labels ] )
-    data = data.reshape([-1,img_channels, image_size, image_size])
-    data = data.transpose([0, 2, 3, 1])
-    return data, labels
-
-def prepare_data():
-    print("======Loading data======")
-    download_data()
-    data_dir = './cifar-10-batches-py'
-    image_dim = image_size * image_size * img_channels
-    meta = unpickle( data_dir + '/batches.meta')
-
-    label_names = meta[b'label_names']
-    label_count = len(label_names)
-    train_files = [ 'data_batch_%d' % d for d in range(1,6) ]
-    train_data, train_labels = load_data(train_files, data_dir, label_count)
-    test_data, test_labels = load_data([ 'test_batch' ], data_dir, label_count)
-
-    print("Train data:",np.shape(train_data), np.shape(train_labels))
-    print("Test data :",np.shape(test_data), np.shape(test_labels))
-    print("======Load finished======")
-
-    print("======Shuffling data======")
-    indices = np.random.permutation(len(train_data))
-    train_data = train_data[indices]
-    train_labels = train_labels[indices]
-    print("======Prepare Finished======")
-
-    return train_data, train_labels, test_data, test_labels
-
-
-
-# ========================================================== #
-# ├─ weight_variable() 
+# ├─ weight_variable()  Kai-Ming He's WI sqrt(2/(k*k*c))
 # ├─ bias_variable()
-# ├─ conv2d()
+# ├─ conv2d()           With Batch Normalization
 # ├─ max_pool()
 # └─ global_avg_pool()
 # ========================================================== #
 
 
 def weight_variable(shape, stv=0.05):
-    initial = tf.random_normal(shape, stddev=stv, dtype=tf.float32 )
+    initial = tf.random_normal(shape, stddev=math.sqrt(2.0/(1.0*shape[3]*shape[1]*shape[0])), dtype=tf.float32 )
     return tf.Variable(initial)
 
 def bias_variable(shape):
-    initial = tf.constant(0, shape=shape, dtype=tf.float32 )
+    initial = tf.constant(0.1, shape=shape, dtype=tf.float32 )
     return tf.Variable(initial)
 
 def conv2d(x, W):
@@ -160,6 +56,8 @@ def max_pool(input, k_size=1, stride=1):
 def global_avg_pool(input, k_size=1, stride=1):
     return tf.nn.avg_pool(input, ksize=[1,k_size,k_size,1], strides=[1,stride,stride,1], padding='VALID')
 
+def batch_norm(input):
+    return tf.contrib.layers.batch_norm(input, decay=0.9, center=True, scale=True, epsilon=1e-3, is_training=train_flag, updates_collections=None)
 
 
 # ========================================================== #
@@ -231,7 +129,7 @@ def run_testing(sess,ep):
         batch_x = test_x[pre_index:pre_index+add]
         batch_y = test_y[pre_index:pre_index+add]
         pre_index = pre_index + add
-        loss_, acc_  = sess.run([cross_entropy,accuracy],feed_dict={x:batch_x, y_:batch_y, keep_prob: 1.0})
+        loss_, acc_  = sess.run([cross_entropy,accuracy],feed_dict={x:batch_x, y_:batch_y, keep_prob: 1.0, train_flag: False})
         loss += loss_ / 10.0
         acc += acc_ / 10.0
     summary = tf.Summary(value=[tf.Summary.Value(tag="test_loss", simple_value=loss), 
@@ -241,6 +139,9 @@ def run_testing(sess,ep):
 
 # ========================================================== #
 # ├─ main()
+# Training and Testing 
+# Save train/teset loss and acc for visualization
+# Save Model in ./model
 # ========================================================== #
 
 
@@ -254,20 +155,21 @@ if __name__ == '__main__':
     y_ = tf.placeholder(tf.float32, [None, class_num])
     keep_prob = tf.placeholder(tf.float32)
     learning_rate = tf.placeholder(tf.float32)
+    train_flag = tf.placeholder(tf.bool)
 
     # build_network
 
-    W_conv1 = weight_variable([5, 5, 3, 192],stv=0.01)
+    W_conv1 = weight_variable([5, 5, 3, 192])
     b_conv1 = bias_variable([192])
-    output  = tf.nn.relu(conv2d(x,W_conv1) + b_conv1)
+    output  = tf.nn.elu( batch_norm(conv2d(x,W_conv1) + b_conv1))
 
     W_mlp11 = weight_variable([1, 1, 192, 160])
     b_mlp11 = bias_variable([160])
-    output  = tf.nn.relu(conv2d(output,W_mlp11) + b_mlp11)
+    output  = tf.nn.elu( batch_norm(conv2d(output,W_mlp11) + b_mlp11))
 
     W_mlp12 = weight_variable([1, 1, 160, 96])
     b_mlp12 = bias_variable([96])
-    output  = tf.nn.relu(conv2d(output,W_mlp12) + b_mlp12)
+    output  = tf.nn.elu( batch_norm(conv2d(output,W_mlp12) + b_mlp12))
 
     output  = max_pool(output, 3, 2)
 
@@ -275,15 +177,15 @@ if __name__ == '__main__':
 
     W_conv2 = weight_variable([5, 5, 96, 192])
     b_conv2 = bias_variable([192])
-    output  = tf.nn.relu(conv2d(output,W_conv2) + b_conv2)
+    output  = tf.nn.elu( batch_norm(conv2d(output,W_conv2) + b_conv2))
 
     W_mlp21 = weight_variable([1, 1, 192, 192])
     b_mlp21 = bias_variable([192])
-    output  = tf.nn.relu(conv2d(output,W_mlp21) + b_mlp21)
+    output  = tf.nn.elu( batch_norm(conv2d(output,W_mlp21) + b_mlp21))
 
     W_mlp22 = weight_variable([1, 1, 192, 192])
     b_mlp22 = bias_variable([192])
-    output  = tf.nn.relu(conv2d(output,W_mlp22) + b_mlp22)
+    output  = tf.nn.elu( batch_norm(conv2d(output,W_mlp22) + b_mlp22))
 
     output  = max_pool(output, 3, 2)
 
@@ -291,15 +193,15 @@ if __name__ == '__main__':
 
     W_conv3 = weight_variable([3, 3, 192, 192])
     b_conv3 = bias_variable([192])
-    output  = tf.nn.relu(conv2d(output,W_conv3) + b_conv3)
+    output  = tf.nn.elu( batch_norm(conv2d(output,W_conv3) + b_conv3))
 
     W_mlp31 = weight_variable([1, 1, 192, 192])
     b_mlp31 = bias_variable([192])
-    output  = tf.nn.relu(conv2d(output,W_mlp31) + b_mlp31)
+    output  = tf.nn.elu( batch_norm(conv2d(output,W_mlp31) + b_mlp31))
 
     W_mlp32 = weight_variable([1, 1, 192, 10])
     b_mlp32 = bias_variable([10])
-    output  = tf.nn.relu(conv2d(output,W_mlp32) + b_mlp32)
+    output  = tf.nn.elu( batch_norm(conv2d(output,W_mlp32) + b_mlp32))
 
     output  = global_avg_pool(output, 8, 1)
 
@@ -307,9 +209,7 @@ if __name__ == '__main__':
 
 
     # loss function: cross_entropy
-    # weight decay: l2 * weight_decay
     # train_step: training operation
-
     cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=y_, logits=output))
     l2 = tf.add_n([tf.nn.l2_loss(var) for var in tf.trainable_variables()])
     train_step = tf.train.MomentumOptimizer(learning_rate, momentum_rate,use_nesterov=True).minimize(cross_entropy + l2 * weight_decay)
@@ -346,8 +246,8 @@ if __name__ == '__main__':
 
                 batch_x = data_augmentation(batch_x)
 
-                _, batch_loss = sess.run([train_step, cross_entropy],feed_dict={x:batch_x, y_:batch_y, keep_prob: dropout_rate, learning_rate: lr})
-                batch_acc = accuracy.eval(feed_dict={x:batch_x, y_:batch_y, keep_prob: 1.0})
+                _, batch_loss = sess.run([train_step, cross_entropy],feed_dict={x:batch_x, y_:batch_y, keep_prob: dropout_rate, learning_rate: lr, train_flag: True})
+                batch_acc = accuracy.eval(feed_dict={x:batch_x, y_:batch_y, keep_prob: 1.0, train_flag: True})
 
                 train_loss += batch_loss
                 train_acc  += batch_acc
@@ -357,7 +257,7 @@ if __name__ == '__main__':
                     train_loss /= iterations
                     train_acc /= iterations
 
-                    loss_, acc_  = sess.run([cross_entropy,accuracy],feed_dict={x:batch_x, y_:batch_y, keep_prob: 1.0})
+                    loss_, acc_  = sess.run([cross_entropy,accuracy],feed_dict={x:batch_x, y_:batch_y, keep_prob: 1.0, train_flag: True})
                     train_summary = tf.Summary(value=[tf.Summary.Value(tag="train_loss", simple_value=train_loss), 
                                           tf.Summary.Value(tag="train_accuracy", simple_value=train_acc)])
 
