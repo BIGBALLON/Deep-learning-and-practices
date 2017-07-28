@@ -1,6 +1,15 @@
 # NCTU_DL
 
-Version control for my deep learning course.
+
+
+> Plagiarism is a very very serious offense.   
+> Please Finish homework by yourself.
+
+
+
+
+**Version control for my deep learning course.**
+
 
 - Lab02_Tensorflow tutorial
 - Lab03_CNN(Network In Network, NIN) in cifar10
@@ -18,9 +27,7 @@ Version control for my deep learning course.
     - [Bilibili][1] 
     - [YouTube][2]
 
-<a href="http://www.youtube.com/watch?feature=player_embedded&v=96WcshnH6yA
-" target="_blank"><img src="http://img.youtube.com/vi/96WcshnH6yA/0.jpg" 
-alt="IMAGE ALT TEXT HERE" width="700" height="380" border="10" /></a>
+
 
 
   [1]: http://www.bilibili.com/video/av12175745/
